@@ -1,9 +1,18 @@
 #!/bin/bash
-cat /etc/hosts | while read ip nume rest; do
-	[[ -z "$ip" || "$ip" == \#* ]] && continue
-	[[ -z "$nume" ]] && continue
-	[[ "$ip" == *:* || "$ip" == 127.* ]] && continue
-	if ! nslookup "$nume" 8.8.8.8 | awk '/^Name:/ {r=1} r && /^Address:/ {print $2}' | grep -qx "$ip"; then
-		echo "Bogus IP for $nume in /etc/hosts!"
-	fi
+verifica_ip() {
+    local host="$1"
+    local ip="$2"
+    local dns="$3"
+    local rezolvat
+
+    rezolvat=$(dig +short @"$dns" "$host" A)
+
+    if echo "$rezolvat" | grep -qx "$ip"; then
+        echo "OK: $host -> $ip"
+    else
+        echo "EROARE: $host nu corespunde cu $ip (DNS a răspuns: $rezolvat)"
+    fi
+}
+grep -vE '^\s*(#|$)' /etc/hosts | while read -r ip host _; do
+    verifica_ip "$host" "$ip" 8.8.8.8
 done
